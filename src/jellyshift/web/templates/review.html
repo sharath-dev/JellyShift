@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% set active = "review" %}
+{% block title %}Review — JellyShift{% endblock %}
+{% block content %}
+<h1>Review queue</h1>
+<p class="meta">{{ items|length }} item(s) in review</p>
+
+{% for item in items %}
+<article class="review-card" id="item-{{ item.id }}">
+  <header>
+    <h2>{{ item.filename }}</h2>
+    <span class="badge status-review">review</span>
+  </header>
+
+  <dl class="detail-list">
+    <dt>Reason</dt><dd>{{ item.reason }}</dd>
+    <dt>Torrent</dt><dd>{{ item.torrent_name or '—' }}</dd>
+    <dt>Original path</dt><dd><code>{{ item.original_path }}</code></dd>
+    <dt>Added</dt><dd>{{ item.added_at }}</dd>
+  </dl>
+
+  <div class="review-actions">
+    <label>Notes
+      <textarea class="notes-input" data-id="{{ item.id }}">{{ item.notes or '' }}</textarea>
+    </label>
+    <button type="button" class="btn-save-notes" data-id="{{ item.id }}">Save notes</button>
+
+    <label>Rename
+      <input type="text" class="rename-input" data-id="{{ item.id }}" value="{{ item.filename }}">
+    </label>
+    <button type="button" class="btn-rename" data-id="{{ item.id }}">Rename</button>
+
+    <div class="process-form">
+      <select class="process-category" data-id="{{ item.id }}">
+        <option value="movie">Movie</option>
+        <option value="tv" selected>TV</option>
+      </select>
+      <label><input type="checkbox" class="process-dry-run" data-id="{{ item.id }}"> Dry run</label>
+      <label><input type="checkbox" class="process-force" data-id="{{ item.id }}"> Force</label>
+      <button type="button" class="btn-process" data-id="{{ item.id }}">Re-process</button>
+    </div>
+
+    <button type="button" class="btn-delete danger" data-id="{{ item.id }}">Delete</button>
+    <pre class="process-output hidden" data-id="{{ item.id }}"></pre>
+  </div>
+</article>
+{% else %}
+<p class="empty">Review queue is empty.</p>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.btn-save-notes').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.id;
+    const notes = document.querySelector(`.notes-input[data-id="${id}"]`).value;
+    await fetch(`/api/review/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({notes}),
+    });
+    btn.textContent = 'Saved';
+    setTimeout(() => btn.textContent = 'Save notes', 1500);
+  });
+});
+
+document.querySelectorAll('.btn-rename').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.id;
+    const new_name = document.querySelector(`.rename-input[data-id="${id}"]`).value;
+    const res = await fetch(`/api/review/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({new_name}),
+    });
+    if (res.ok) location.reload();
+    else alert(await res.text());
+  });
+});
+
+document.querySelectorAll('.btn-process').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.id;
+    const category = document.querySelector(`.process-category[data-id="${id}"]`).value;
+    const dry_run = document.querySelector(`.process-dry-run[data-id="${id}"]`).checked;
+    const force = document.querySelector(`.process-force[data-id="${id}"]`).checked;
+    const out = document.querySelector(`.process-output[data-id="${id}"]`);
+    out.classList.remove('hidden');
+    out.textContent = 'Running…';
+    const res = await fetch(`/api/review/${encodeURIComponent(id)}/process`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({category, dry_run, force}),
+    });
+    const data = await res.json();
+    out.textContent = `Exit ${data.exit_code}\n${data.stdout}\n${data.stderr}`;
+  });
+});
+
+document.querySelectorAll('.btn-delete').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!confirm('Delete this review item?')) return;
+    const id = btn.dataset.id;
+    await fetch(`/api/review/${encodeURIComponent(id)}`, {method: 'DELETE'});
+    location.reload();
+  });
+});
+</script>
+{% endblock %}

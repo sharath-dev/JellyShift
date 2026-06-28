@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set active = "invocations" %}
+{% block title %}Invocations — JellyShift{% endblock %}
+{% block content %}
+<h1>Invocations</h1>
+
+<form class="filters" method="get">
+  <input type="search" name="search" placeholder="Search torrent or path…" value="{{ search }}">
+  <select name="status">
+    <option value="">All statuses</option>
+    <option value="success" {% if status == 'success' %}selected{% endif %}>Success</option>
+    <option value="failed" {% if status == 'failed' %}selected{% endif %}>Failed</option>
+    <option value="review" {% if status == 'review' %}selected{% endif %}>Review</option>
+  </select>
+  <select name="media_type">
+    <option value="">All types</option>
+    <option value="movie" {% if media_type == 'movie' %}selected{% endif %}>Movie</option>
+    <option value="tv" {% if media_type == 'tv' %}selected{% endif %}>TV</option>
+    <option value="unknown" {% if media_type == 'unknown' %}selected{% endif %}>Unknown</option>
+  </select>
+  <button type="submit">Filter</button>
+</form>
+
+<p class="meta">{{ total }} invocation(s)</p>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th>Torrent / file</th>
+      <th>Type</th>
+      <th>Status</th>
+      <th>Summary</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr class="clickable-row" onclick="window.location='/invocations/{{ item.run_id }}'">
+      <td>{{ item.started_at }}</td>
+      <td>
+        {% if item.inputs %}
+          {{ item.inputs.torrent_name or item.inputs.content_path.split('/')[-1] }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+      <td><span class="badge type-{{ item.media.classified_as or 'unknown' }}">{{ item.media.classified_as or '?' }}</span></td>
+      <td><span class="badge status-{{ item.status }}">{{ item.status }}</span></td>
+      <td>{{ item.summary() }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="empty">No invocations found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if total > per_page %}
+<div class="pagination">
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}&status={{ status }}&media_type={{ media_type }}&search={{ search }}">← Previous</a>
+  {% endif %}
+  <span>Page {{ page }}</span>
+  {% if page * per_page < total %}
+  <a href="?page={{ page + 1 }}&status={{ status }}&media_type={{ media_type }}&search={{ search }}">Next →</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

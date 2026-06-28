@@ -336,6 +336,98 @@ Re-run after fixing:
 jellyshift --config config.yaml "/path/to/Review/Fixed.Show.S01E01.mkv" --category tv --force
 ```
 
+## Web UI
+
+JellyShift includes a local web interface for managing invocations, the review queue, and all configuration.
+
+### Install
+
+```bash
+pip install ".[web]"
+```
+
+### Start the server
+
+```bash
+jellyshift serve --config config.yaml
+```
+
+Open **http://127.0.0.1:8765** (default). Bind host and port can be set in `config.yaml` under `web:` or overridden with `--host` / `--port`.
+
+### Keep running after closing WSL
+
+Closing a WSL terminal stops foreground processes. Install the Web UI as a **systemd user service** so it keeps running in the background:
+
+```bash
+pip install ".[web]"
+jellyshift service install --config config.yaml
+```
+
+Check status and logs:
+
+```bash
+jellyshift service status
+journalctl --user -u jellyshift-web -f
+```
+
+Other service commands: `start`, `stop`, `restart`, `uninstall`.
+
+**WSL requirements**
+
+1. Enable systemd in `/etc/wsl.conf` (Ubuntu 22.04+):
+
+   ```ini
+   [boot]
+   systemd=true
+   ```
+
+   Then run `wsl --shutdown` from Windows and reopen WSL.
+
+2. Prevent WSL from idle-shutting down when all terminals are closed — add to `%USERPROFILE%\.wslconfig` on Windows:
+
+   ```ini
+   [wsl2]
+   vmIdleTimeout=-1
+   ```
+
+**Start on Windows login (optional)**
+
+If you want the Web UI to come back after a full reboot without opening WSL manually:
+
+1. Install the service inside WSL (command above).
+2. Edit `WSL_DISTRO` and `WSL_USER` in [`run-web-service.cmd`](run-web-service.cmd) (same values as `run-hook.cmd`).
+3. Run [`install-web-autostart.cmd`](install-web-autostart.cmd) once from Windows — it registers a logon scheduled task that runs `systemctl --user start jellyshift-web` inside WSL.
+
+### Invocations
+
+The home page lists every JellyShift run (from qBittorrent hooks or manual CLI). Click a row to see:
+
+- Media summary — classification, TMDB match, file moves/skips, review outcome
+- Full logs for that specific invocation
+
+New runs also write a structured index to `logs/runs/<run_id>.json`. Older runs are recovered by parsing `logs/jellyshift.log`.
+
+### Review queue
+
+At **/review**, triage items parked in `review_dir`:
+
+- Edit notes and rename files
+- Re-process with movie/TV category, dry-run, and force options
+- Delete dismissed items
+
+### Settings
+
+At **/settings**, edit every JellyShift variable:
+
+- TMDB API key and similarity threshold
+- Library paths (movies, TV, review)
+- qBittorrent category map
+- Processing and logging options
+- Hook / WSL settings (`wsl_distro`, `wsl_user`, `hook_sh`) — synced to `run-hook.cmd` and `hook.env` on save
+- Web server host and port
+
+If the `TMDB_API_KEY` environment variable is set, it overrides the config file at runtime; the settings page shows a warning when this is active.
+
 ## Development
 
 ```bash

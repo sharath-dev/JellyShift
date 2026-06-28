@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% set active = "settings" %}
+{% block title %}Settings — JellyShift{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+
+{% if settings.tmdb_api_key_from_env %}
+<div class="alert">TMDB_API_KEY environment variable is set and overrides config.yaml.</div>
+{% endif %}
+
+<form id="settings-form" class="settings-form">
+  <fieldset>
+    <legend>TMDB</legend>
+    <label>API key
+      <input type="password" name="tmdb_api_key" value="{{ settings.tmdb_api_key }}" autocomplete="off">
+      <small>Current effective: {{ settings.tmdb_api_key_masked }}</small>
+    </label>
+    <label>Similarity threshold
+      <input type="number" name="tmdb_similarity_threshold" min="0" max="1" step="0.05"
+             value="{{ settings.tmdb_similarity_threshold }}">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Library paths</legend>
+    <label>Movies root
+      <input type="text" name="movies_root" value="{{ settings.movies_root }}" required>
+      <button type="button" class="btn-test-path" data-target="movies_root">Test</button>
+    </label>
+    <label>TV root
+      <input type="text" name="tv_root" value="{{ settings.tv_root }}" required>
+      <button type="button" class="btn-test-path" data-target="tv_root">Test</button>
+    </label>
+    <label>Review dir
+      <input type="text" name="review_dir" value="{{ settings.review_dir }}" required>
+      <button type="button" class="btn-test-path" data-target="review_dir">Test</button>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Category map</legend>
+    <div id="category-map">
+      {% for cat, mtype in settings.category_map.items() %}
+      <div class="category-row">
+        <input type="text" name="cat_key" value="{{ cat }}" placeholder="category">
+        <select name="cat_val">
+          <option value="movie" {% if mtype == 'movie' %}selected{% endif %}>movie</option>
+          <option value="tv" {% if mtype == 'tv' %}selected{% endif %}>tv</option>
+        </select>
+        <button type="button" class="btn-remove-row">Remove</button>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" id="add-category">Add category</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Processing</legend>
+    <label><input type="checkbox" name="include_episode_title" {% if settings.include_episode_title %}checked{% endif %}> Include episode title in TV filenames</label>
+    <label><input type="checkbox" name="dry_run" {% if settings.dry_run %}checked{% endif %}> Global dry-run</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Logging</legend>
+    <label>Level
+      <select name="log_level">
+        {% for lvl in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
+        <option value="{{ lvl }}" {% if settings.log_level == lvl %}selected{% endif %}>{{ lvl }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Log file (empty = default, "null" = disabled)
+      <input type="text" name="log_file" value="{{ settings.log_file or '' }}">
+    </label>
+    <label>Max bytes
+      <input type="number" name="log_max_bytes" value="{{ settings.log_max_bytes }}">
+    </label>
+    <label>Backup count
+      <input type="number" name="log_backup_count" value="{{ settings.log_backup_count }}">
+    </label>
+  </fieldset>
+
+  {% if settings.has_run_hook_cmd %}
+  <fieldset>
+    <legend>Hook / WSL</legend>
+    <label>WSL distro
+      <input type="text" name="hook_wsl_distro" value="{{ settings.hook.wsl_distro }}">
+    </label>
+    <label>WSL user
+      <input type="text" name="hook_wsl_user" value="{{ settings.hook.wsl_user }}">
+    </label>
+    <label>Hook script path (empty = auto)
+      <input type="text" name="hook_sh" value="{{ settings.hook.hook_sh or '' }}">
+    </label>
+  </fieldset>
+  {% endif %}
+
+  <fieldset>
+    <legend>Web server</legend>
+    <label>Host
+      <input type="text" name="web_host" value="{{ settings.web.host }}">
+    </label>
+    <label>Port
+      <input type="number" name="web_port" value="{{ settings.web.port }}">
+    </label>
+    <small>Restart `jellyshift serve` after changing host/port.</small>
+  </fieldset>
+
+  <button type="submit" class="btn-primary">Save settings</button>
+  <span id="save-status"></span>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const categoryMap = document.getElementById('category-map');
+
+document.getElementById('add-category').addEventListener('click', () => {
+  const row = document.createElement('div');
+  row.className = 'category-row';
+  row.innerHTML = `
+    <input type="text" name="cat_key" placeholder="category">
+    <select name="cat_val"><option value="movie">movie</option><option value="tv">tv</option></select>
+    <button type="button" class="btn-remove-row">Remove</button>`;
+  categoryMap.appendChild(row);
+});
+
+categoryMap.addEventListener('click', e => {
+  if (e.target.classList.contains('btn-remove-row')) e.target.parentElement.remove();
+});
+
+document.querySelectorAll('.btn-test-path').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const name = btn.dataset.target;
+    const path = document.querySelector(`[name="${name}"]`).value;
+    const res = await fetch('/api/settings/test-path', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({path}),
+    });
+    const data = await res.json();
+    alert(data.ok ? 'OK: ' + data.message : 'Failed: ' + data.message);
+  });
+});
+
+document.getElementById('settings-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const form = e.target;
+  const category_map = {};
+  form.querySelectorAll('.category-row').forEach(row => {
+    const key = row.querySelector('[name="cat_key"]').value.trim();
+    const val = row.querySelector('[name="cat_val"]').value;
+    if (key) category_map[key] = val;
+  });
+
+  const payload = {
+    tmdb_api_key: form.tmdb_api_key.value,
+    movies_root: form.movies_root.value,
+    tv_root: form.tv_root.value,
+    review_dir: form.review_dir.value,
+    category_map,
+    tmdb_similarity_threshold: parseFloat(form.tmdb_similarity_threshold.value),
+    include_episode_title: form.include_episode_title.checked,
+    dry_run: form.dry_run.checked,
+    log_level: form.log_level.value,
+    log_file: form.log_file.value || null,
+    log_max_bytes: parseInt(form.log_max_bytes.value, 10),
+    log_backup_count: parseInt(form.log_backup_count.value, 10),
+    hook: {
+      wsl_distro: form.hook_wsl_distro?.value || 'Ubuntu-22.04',
+      wsl_user: form.hook_wsl_user?.value || 'sharath',
+      hook_sh: form.hook_sh?.value || null,
+    },
+    web: {
+      host: form.web_host.value,
+      port: parseInt(form.web_port.value, 10),
+    },
+  };
+
+  const res = await fetch('/api/settings', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+  const status = document.getElementById('save-status');
+  if (res.ok) {
+    status.textContent = 'Saved';
+    status.className = 'success';
+  } else {
+    status.textContent = 'Save failed';
+    status.className = 'error';
+  }
+});
+</script>
+{% endblock %}

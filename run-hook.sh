@@ -11,9 +11,11 @@ _BOOT_LOG="/tmp/jellyshift-hook.log"
 set -uo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# JellyShift hook.env
+[[ -f "$APP_DIR/hook.env" ]] && source "$APP_DIR/hook.env"
 LOG_DIR="$APP_DIR/logs"
 FALLBACK_LOG="/tmp/jellyshift-hook.log"
-WSL_USER="${JELLYSHIFT_USER:-sharath}"
+WSL_USER="${JELLYSHIFT_USER:-${JELLYSHIFT_DEFAULT_USER:-sharath}}"
 
 # qBittorrent often launches wsl.exe as root; root cannot create dirs on /mnt/* (drvfs).
 if [[ "$(id -u)" -eq 0 && "$(id -un 2>/dev/null)" != "$WSL_USER" ]]; then

@@ -45,3 +45,14 @@ log_level: INFO
 # Set log_file to null to disable file logging (stderr only)
 log_max_bytes: 5242880   # 5 MB per file before rotation
 log_backup_count: 3
+
+# ── Hook / WSL bridge (Windows + WSL setups) ─────────────────────────────────
+hook:
+  wsl_distro: Ubuntu-22.04
+  wsl_user: sharath
+  hook_sh: null   # null = auto: /home/<wsl_user>/projects/JellyShift/run-hook.sh
+
+# ── Web UI ────────────────────────────────────────────────────────────────────
+web:
+  host: 127.0.0.1
+  port: 8765
