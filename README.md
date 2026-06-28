@@ -45,6 +45,12 @@ source .venv/bin/activate
 pip install .
 ```
 
+For the Web UI, install the optional web dependencies:
+
+```bash
+pip install ".[web]"
+```
+
 The `jellyshift` command is now available inside the venv.
 
 ## Configuration
@@ -338,103 +344,205 @@ jellyshift --config config.yaml "/path/to/Review/Fixed.Show.S01E01.mkv" --catego
 
 ## Web UI
 
-JellyShift includes a local web interface for managing invocations, the review queue, and all configuration.
+JellyShift includes a local web interface for browsing invocation history, triaging the review queue, and editing all configuration (paths, TMDB key, category map, hook/WSL settings, and more).
 
-### Install
+Default URL: **http://127.0.0.1:8765**
+
+| Page | URL | What it does |
+|---|---|---|
+| Invocations | `/` | List every JellyShift run; click one for media summary + logs |
+| Review | `/review` | Rename, add notes, re-process, or delete review items |
+| Settings | `/settings` | Edit all `config.yaml` and hook variables |
+
+---
+
+### 1. Install Web UI dependencies
+
+From your JellyShift folder with the venv activated:
 
 ```bash
 pip install ".[web]"
 ```
 
-### Start the server
+This adds FastAPI, Uvicorn, Jinja2, and ruamel.yaml on top of the base install.
+
+---
+
+### 2. Configure (optional)
+
+The Web UI reads the same `config.yaml` as the CLI. Optional settings in [`config.example.yaml`](config.example.yaml):
+
+```yaml
+web:
+  host: 127.0.0.1   # use 0.0.0.0 to allow LAN access
+  port: 8765
+
+hook:
+  wsl_distro: Ubuntu-22.04
+  wsl_user: sharath
+  hook_sh: null     # null = auto
+```
+
+You can also change host, port, and all other settings from **Settings** in the browser after the server is running.
+
+---
+
+### 3. Start the server
+
+**Quick test (foreground)** — stops when you close the terminal:
 
 ```bash
 jellyshift serve --config config.yaml
 ```
 
-Open **http://127.0.0.1:8765** (default). Bind host and port can be set in `config.yaml` under `web:` or overridden with `--host` / `--port`.
-
-### Keep running after closing WSL
-
-Closing a WSL terminal stops foreground processes. Install the Web UI as a **systemd user service** so it keeps running in the background:
+Override bind address:
 
 ```bash
-pip install ".[web]"
+jellyshift serve --config config.yaml --host 127.0.0.1 --port 8765
+```
+
+**Persistent background** — keeps running after you close the terminal:
+
+| Setup | Command |
+|---|---|
+| WSL / Linux with systemd | `jellyshift service install --config config.yaml` |
+| WSL without systemd | `jellyshift service install --config config.yaml --background` |
+
+Check whether it is running:
+
+```bash
+jellyshift service status --config config.yaml
+```
+
+Stop or remove:
+
+```bash
+jellyshift service stop --config config.yaml      # stop
+jellyshift service restart --config config.yaml   # restart (systemd only)
+jellyshift service uninstall --config config.yaml # stop and remove
+```
+
+---
+
+### 4. WSL setup (recommended for Windows + WSL users)
+
+If JellyShift runs in WSL, use these steps so the Web UI survives closing your terminal and optionally starts on Windows login.
+
+#### 4a. Enable systemd in WSL
+
+Edit `/etc/wsl.conf` inside WSL (requires `sudo`):
+
+```ini
+[boot]
+systemd=true
+```
+
+From **Windows** PowerShell or Command Prompt:
+
+```cmd
+wsl --shutdown
+```
+
+Re-open WSL, then install the service:
+
+```bash
+cd ~/projects/JellyShift
+source .venv/bin/activate
 jellyshift service install --config config.yaml
 ```
 
-If you see **"Failed to connect to bus"**, systemd is not enabled in WSL yet. Either enable it (recommended) or use background mode:
+Verify:
+
+```bash
+jellyshift service status --config config.yaml
+journalctl --user -u jellyshift-web -f
+```
+
+#### 4b. If you see "Failed to connect to bus"
+
+Systemd is not running yet. Either complete step 4a above, or use background mode (no systemd, no auto-restart on reboot):
 
 ```bash
 jellyshift service install --config config.yaml --background
 ```
 
-Background mode keeps the Web UI running after you close the terminal, without systemd.
+Logs for background mode: `<JellyShift>/logs/webui.log`
 
-Check status and logs:
+#### 4c. Keep WSL running when terminals are closed
 
-```bash
-jellyshift service status
-journalctl --user -u jellyshift-web -f
+Add to `%USERPROFILE%\.wslconfig` on **Windows** (create the file if it does not exist):
+
+```ini
+[wsl2]
+vmIdleTimeout=-1
 ```
 
-Other service commands: `start`, `stop`, `restart`, `uninstall`.
+Run `wsl --shutdown` once after saving, then reopen WSL.
 
-**WSL requirements**
+#### 4d. Start Web UI on Windows login (optional)
 
-1. Enable systemd in `/etc/wsl.conf` (Ubuntu 22.04+):
+After the service is installed inside WSL:
 
-   ```ini
-   [boot]
-   systemd=true
-   ```
+1. Edit `WSL_DISTRO` and `WSL_USER` in [`run-web-service.cmd`](run-web-service.cmd) — use the same values as in [`run-hook.cmd`](run-hook.cmd).
+2. Double-click or run [`install-web-autostart.cmd`](install-web-autostart.cmd) once from Windows. This registers a logon scheduled task that starts the Web UI inside WSL.
 
-   Then run `wsl --shutdown` from Windows and reopen WSL.
+---
 
-2. Prevent WSL from idle-shutting down when all terminals are closed — add to `%USERPROFILE%\.wslconfig` on Windows:
+### 5. Linux / macOS setup
 
-   ```ini
-   [wsl2]
-   vmIdleTimeout=-1
-   ```
+On native Linux with systemd:
 
-**Start on Windows login (optional)**
+```bash
+jellyshift service install --config config.yaml
+jellyshift service status --config config.yaml
+```
 
-If you want the Web UI to come back after a full reboot without opening WSL manually:
+On macOS (no systemd), use foreground mode or background mode:
 
-1. Install the service inside WSL (command above).
-2. Edit `WSL_DISTRO` and `WSL_USER` in [`run-web-service.cmd`](run-web-service.cmd) (same values as `run-hook.cmd`).
-3. Run [`install-web-autostart.cmd`](install-web-autostart.cmd) once from Windows — it registers a logon scheduled task that runs `systemctl --user start jellyshift-web` inside WSL.
+```bash
+jellyshift service install --config config.yaml --background
+```
 
-### Invocations
+---
 
-The home page lists every JellyShift run (from qBittorrent hooks or manual CLI). Click a row to see:
+### Using the Web UI
 
-- Media summary — classification, TMDB match, file moves/skips, review outcome
-- Full logs for that specific invocation
+**Invocations** — the home page lists every run triggered by qBittorrent hooks or manual CLI use. Each row shows time, torrent name, media type, status, and a short summary. Click a row to open:
 
-New runs also write a structured index to `logs/runs/<run_id>.json`. Older runs are recovered by parsing `logs/jellyshift.log`.
+- **Media summary** — classification, TMDB match, file moves/skips, review outcome
+- **Logs** — full log output for that invocation only
 
-### Review queue
+New runs write a structured index to `logs/runs/<run_id>.json`. Older runs are recovered by parsing `logs/jellyshift.log`.
 
-At **/review**, triage items parked in `review_dir`:
+**Review queue** (`/review`) — triage items in `review_dir`:
 
 - Edit notes and rename files
 - Re-process with movie/TV category, dry-run, and force options
 - Delete dismissed items
 
-### Settings
-
-At **/settings**, edit every JellyShift variable:
+**Settings** (`/settings`) — edit every JellyShift variable:
 
 - TMDB API key and similarity threshold
-- Library paths (movies, TV, review)
+- Library paths (movies, TV, review) with writable-path test
 - qBittorrent category map
 - Processing and logging options
-- Hook / WSL settings (`wsl_distro`, `wsl_user`, `hook_sh`) — synced to `run-hook.cmd` and `hook.env` on save
-- Web server host and port
+- Hook / WSL settings — saved to `config.yaml` and synced to `run-hook.cmd` and `hook.env`
+- Web server host and port (restart required after changing)
 
 If the `TMDB_API_KEY` environment variable is set, it overrides the config file at runtime; the settings page shows a warning when this is active.
+
+---
+
+### Web UI troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `Failed to connect to bus` on `service install` | Enable systemd (WSL step 4a) or use `--background` |
+| Page not loading from Windows browser | Confirm server is running (`service status`); default URL is http://127.0.0.1:8765 |
+| Web UI stops after closing all WSL windows | Set `vmIdleTimeout=-1` in `.wslconfig` (step 4c) |
+| Settings changes to hook vars not applied | Save from Settings page; it writes `config.yaml`, patches `run-hook.cmd`, and updates `hook.env` |
+| Invocations list empty | Run at least one `jellyshift` import first; check `logs/jellyshift.log` exists |
+
 
 ## Development
 
