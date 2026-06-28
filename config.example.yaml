@@ -1,0 +1,47 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# JellyShift  •  example configuration
+# Copy this file to config.yaml and fill in your values.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Free TMDB API key — register at https://www.themoviedb.org/settings/api
+# Can also be set via the TMDB_API_KEY environment variable (takes precedence).
+tmdb_api_key: "YOUR_TMDB_API_KEY"
+
+# ── Destination library roots ─────────────────────────────────────────────────
+# These must exactly match the paths Jellyfin has configured as library roots.
+movies_root: "D:/Jellyfin/Movies"
+tv_root: "D:/Jellyfin/TV Shows"
+
+# Items that could not be confidently matched or classified are moved here.
+review_dir: "D:/Jellyfin/Review"
+
+# ── qBittorrent category → media type mapping ────────────────────────────────
+# Strongly recommended: set categories in qBittorrent so JellyShift never has to
+# guess. Supported values for the mapped type: "movie" or "tv".
+category_map:
+  movies: movie
+  movie: movie
+  films: movie
+  tv: tv
+  shows: tv
+  series: tv
+  anime: tv
+
+# ── TMDB matching ─────────────────────────────────────────────────────────────
+tmdb_similarity_threshold: 0.6
+
+# Whether to append the episode title to TV filenames, e.g.:
+#   Show Name - S01E03 - Episode Title.mkv
+include_episode_title: true
+
+# ── Safety ────────────────────────────────────────────────────────────────────
+dry_run: false
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+# Levels: DEBUG, INFO, WARNING, ERROR
+log_level: INFO
+# Default: logs/jellyshift.log inside the JellyShift folder (next to config.yaml)
+# log_file: logs/jellyshift.log
+# Set log_file to null to disable file logging (stderr only)
+log_max_bytes: 5242880   # 5 MB per file before rotation
+log_backup_count: 3
