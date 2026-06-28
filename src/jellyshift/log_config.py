@@ -133,9 +133,12 @@ def log_run_context(
     config_file: Path,
     dry_run: bool,
     force: bool,
+    run_id: str | None = None,
 ) -> None:
     """Log the inputs for a single hook invocation."""
     logger.info("─" * 60)
+    if run_id:
+        logger.info("  run_id:       %s", run_id)
     logger.info("JellyShift run started")
     logger.info("  config:       %s", config_file)
     logger.info("  content_path: %s", content_path)

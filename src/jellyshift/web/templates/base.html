@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}JellyShift{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo">JellyShift</a>
+      <nav>
+        <a href="/" class="{% if active == 'invocations' %}active{% endif %}">Invocations</a>
+        <a href="/review" class="{% if active == 'review' %}active{% endif %}">Review</a>
+        <a href="/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% set active = "invocations" %}
+{% block title %}Invocation — JellyShift{% endblock %}
+{% block content %}
+<p><a href="/">← Back to invocations</a></p>
+
+<h1>Invocation</h1>
+<p class="meta">Run ID: <code>{{ record.run_id }}</code> · {{ record.started_at }}</p>
+
+<div class="two-panel">
+  <section class="panel">
+    <h2>Media summary</h2>
+    {% if record.inputs %}
+    <dl class="detail-list">
+      <dt>Content path</dt><dd><code>{{ record.inputs.content_path }}</code></dd>
+      <dt>Torrent name</dt><dd>{{ record.inputs.torrent_name }}</dd>
+      <dt>Category</dt><dd>{{ record.inputs.category or '(none)' }}</dd>
+      <dt>Dry run</dt><dd>{{ record.inputs.dry_run }}</dd>
+      <dt>Force</dt><dd>{{ record.inputs.force }}</dd>
+    </dl>
+    {% endif %}
+
+    <dl class="detail-list">
+      <dt>Classification</dt><dd>{{ record.media.classified_as or '—' }}</dd>
+      <dt>TMDB match</dt><dd>{{ record.media.tmdb_match or '—' }}</dd>
+      <dt>Status</dt><dd><span class="badge status-{{ record.status }}">{{ record.status }}</span></dd>
+      {% if record.media.review_reason %}
+      <dt>Review reason</dt><dd>{{ record.media.review_reason }}</dd>
+      {% endif %}
+      {% if record.error %}
+      <dt>Error</dt><dd class="error-text">{{ record.error }}</dd>
+      {% endif %}
+    </dl>
+
+    {% if record.media.files_moved %}
+    <h3>File operations</h3>
+    <table class="data-table compact">
+      <thead><tr><th>Action</th><th>Source</th><th>Destination</th></tr></thead>
+      <tbody>
+        {% for f in record.media.files_moved %}
+        <tr>
+          <td><span class="badge">{{ f.action }}</span></td>
+          <td><code>{{ f.src }}</code></td>
+          <td><code>{{ f.dst }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if record.media.files_skipped %}
+    <h3>Skipped</h3>
+    <ul>
+      {% for path in record.media.files_skipped %}
+      <li><code>{{ path }}</code></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if review_link %}
+    <p><a href="/review#item-{{ review_link }}">Open in Review queue</a></p>
+    {% endif %}
+  </section>
+
+  <section class="panel log-panel">
+    <h2>Logs</h2>
+    <pre class="log-viewer">{% for line in record.log_lines %}{{ line }}
+{% endfor %}{% if not record.log_lines %}(No log lines captured for this run){% endif %}</pre>
+  </section>
+</div>
+{% endblock %}
