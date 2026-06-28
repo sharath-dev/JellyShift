@@ -246,34 +246,66 @@ def service_install(
         "-c",
         help="Path to config.yaml.",
     ),
+    background: bool = typer.Option(
+        False,
+        "--background",
+        "-b",
+        help="Run in background without systemd (use when WSL has no systemd/D-Bus).",
+    ),
 ) -> None:
-    """Install and start a systemd user service (persists after terminal close)."""
+    """Install and start the Web UI (systemd service, or --background without systemd)."""
     if not config_file.exists():
         typer.echo(f"Config file not found: {config_file}", err=True)
         raise typer.Exit(1)
     app_dir = config_file.resolve().parent
     try:
-        web_service.install_service(app_dir=app_dir, config_file=config_file)
+        mode = web_service.install_service(
+            app_dir=app_dir,
+            config_file=config_file,
+            background=background,
+        )
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
-    typer.echo(f"Installed {web_service.SERVICE_NAME}")
-    typer.echo("Web UI will restart automatically on failure and after WSL reboot.")
-    typer.echo("Status:  jellyshift service status")
-    typer.echo("Logs:    journalctl --user -u jellyshift-web -f")
+
+    if mode == "systemd":
+        typer.echo(f"Installed {web_service.SERVICE_NAME} (systemd)")
+        typer.echo("Web UI will restart automatically on failure and after WSL reboot.")
+        typer.echo("Status:  jellyshift service status")
+        typer.echo("Logs:    journalctl --user -u jellyshift-web -f")
+    else:
+        typer.echo("Started Web UI in background (no systemd)")
+        typer.echo("Status:  jellyshift service status")
+        typer.echo(f"Logs:    {app_dir / 'logs' / web_service.LOG_FILE}")
 
 
 @service_app.command("uninstall")
-def service_uninstall() -> None:
-    """Stop and remove the systemd user service."""
-    web_service.uninstall_service()
-    typer.echo(f"Removed {web_service.SERVICE_NAME}")
+def service_uninstall(
+    config_file: Path = typer.Option(
+        Path("config.yaml"),
+        "--config",
+        "-c",
+        help="Path to config.yaml.",
+    ),
+) -> None:
+    """Stop and remove the Web UI service."""
+    app_dir = config_file.resolve().parent if config_file.exists() else None
+    web_service.uninstall_service(app_dir=app_dir)
+    typer.echo("Web UI service removed")
 
 
 @service_app.command("status")
-def service_status_cmd() -> None:
-    """Show systemd service status."""
-    typer.echo(web_service.service_status())
+def service_status_cmd(
+    config_file: Path = typer.Option(
+        Path("config.yaml"),
+        "--config",
+        "-c",
+        help="Path to config.yaml.",
+    ),
+) -> None:
+    """Show Web UI service status."""
+    app_dir = config_file.resolve().parent if config_file.exists() else None
+    typer.echo(web_service.service_status(app_dir=app_dir))
 
 
 @service_app.command("start")

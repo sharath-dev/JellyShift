@@ -39,9 +39,5 @@ jellyshift = "jellyshift.cli:app"
 [tool.hatch.build.targets.wheel]
 packages = ["src/jellyshift"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/jellyshift/web/templates" = "jellyshift/web/templates"
-"src/jellyshift/web/static" = "jellyshift/web/static"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]

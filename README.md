@@ -363,6 +363,14 @@ pip install ".[web]"
 jellyshift service install --config config.yaml
 ```
 
+If you see **"Failed to connect to bus"**, systemd is not enabled in WSL yet. Either enable it (recommended) or use background mode:
+
+```bash
+jellyshift service install --config config.yaml --background
+```
+
+Background mode keeps the Web UI running after you close the terminal, without systemd.
+
 Check status and logs:
 
 ```bash
